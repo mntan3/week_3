@@ -10,45 +10,61 @@ class ObstacleDetectionNode:
     def __init__(self):
         self.node_name = "obstacle_detection_node"
         self.header = std_msgs.msg.Header()
-        self.isObject = False
-
-        # object position 0 is left, 1 is middle, 2 is right
-        self.objectPosition = 0
 
         self.sub_scan = rospy.Subscriber("/scan", LaserScan, self.laser_cb)
-        #self.pub_lane = rospy.Publisher("/topicName", Int, queue_size = 1)
+        self.pub_lane = rospy.Publisher("/transition", String, queue_size = 1)
 
-        self.loginfo("initialized")
+        rospy.loginfo("initialized")
 
     def laser_cb(self, msg):
+        not_object_position = "center"
+        isObject = False
+        isMaybeLeft = False
+        isMaybeRight = False
+        isLeft = False
+        isRight = False
         right_wall_index, right_wall_dist = min(enumerate(msg.ranges[0:360]), key=operator.itemgetter(1))
         left_wall_index, left_wall_dist = min(enumerate(msg.ranges[720:1080]), key=operator.itemgetter(1))
-        for i in range(360,720):
-            isLeft = True
+        print(right_wall_index, left_wall_index)
+        for i in range((180+right_wall_index),(540+right_wall_index)):
+
             potential_object_dist = msg.ranges[i]
-            #if potential_object_dist > 10.0:
-                #potential_object_dist = 10.0
+
+            if potential_object_dist > 10.0:
+                potential_object_dist = 10.0
+
             if 360 > i - right_wall_index:
-                isLeft = False
-                supposed_wall_dist = right_wall_dist/(math.cos(math.radians(4 *(i - right_wall_index))))
-                if potential_object_dist < right_wall_dist/math.cos(math.radians(
+                isMaybeRight = True
+                supposed_wall_dist = right_wall_dist/(math.cos(math.radians((i - right_wall_index)/4)))
             else:
-                isLeft = True
-                supposed_wall_dist = left_wall_dist/(math.cos(math.radians(4 * (left_wall_index - i))))
+                isMaybeLeft = True
+                supposed_wall_dist = left_wall_dist/(math.cos(math.radians((left_wall_index - i)/4)))
+
             if supposed_wall_dist > 10.0:
                 supposed_wall_dist = 10.0
-            if potential_object_dist < supposed_wall_dist:
-                self.isObject = True
+
+            if potential_object_dist < supposed_wall_dist - 0.25:
+                isObject = True
+                if isMaybeRight:
+                    isRight = True
+                if isMaybeLeft:
+                    isLeft = True
+
                 if isLeft:
-                    self.object_position = 0
-                elif not isLeft:
-                    self.object_position = 2
+                    not_object_position = "right"
+                elif isRight:
+                    not_object_position = "left"
+                elif isLeft and isRight:
+                    not_object_position = "center"
+                else:
+                    not_object_position = "center"
+
         if isObject:
-            warnRobot(self.object_position)   
+            self.warnRobot(not_object_position)   
         
-    def warnRobot(self, object_position):
-        #publish message for wallfollower.py to pick up                
-            
+    def warnRobot(self, not_object_position):
+        self.pub_lane.publish(not_object_position)
+      
             
 if __name__ == "__main__":
     rospy.init_node("obstacle_detection_node")

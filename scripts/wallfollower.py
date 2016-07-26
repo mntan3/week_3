@@ -1,42 +1,41 @@
 #!/usr/bin/env python
 import rospy
-from ackermann_msgs.msg import AckermannDriveStamped
+from ackermann_msgs.msg import *
 from sensor_msgs.msg import LaserScan
-import std_msgs
+from std_msgs.msg import *
 import math
 
-PID_KP_LEFT = 0.9
-PID_KP_RIGHT = 1.3
+PID_KP_LEFT = 2.0
+PID_KP_RIGHT =  200
 
 PID_KD = 0
 
 class wall_follow:
     def __init__(self):
-        # don't forget to define the node name ya goose
         rospy.Subscriber('/scan', LaserScan, self.simulate_callback, queue_size=10)
-        rospy.Subscriber('/wallfollow'¸ String, self.enable)
+	rospy.Subscriber('/wallfollow', String, self.enable)
 	self.drive_pub = rospy.Publisher("/vesc/ackermann_cmd_mux/input/navigation", AckermannDriveStamped, queue_size = 1)
-
+	self.header = std_msgs.msg.Header()
         self.last_error = None
-        self.STOP = AckermannDriveStamped(self.header, AckermannDrive(steering_angle=0.0, speed    =0.0))
-
+        self.STOP = AckermannDriveStamped(self.header, AckermannDrive(speed=0.0, steering_angle=0.0))
+	
         self.followState = 0    #0 is stop, 1 is follow left, 2 is follow right
         
-        self.desired = 0.45
-    def enable(self.msg):
+        self.desired = 0.55
+    def enable(self,msg):
         if msg.data == "follow left":
             self.followState = 1
         elif msg.data == "follow right":
             self.followState = 2
-        else msg.data == "stop follow"
+        else:
             self.followState = 0
     def calc_actual_dist(self, ranges):
         if self.followState == 1:
             end_index = 900
-            start_index = 850
+            start_index = 660
         else: # follow right
-            end_index = 1081 - 850
-            start_index = 1081 - 900
+            end_index = 420
+            start_index = 180
 
         angle_degrees = (270.0 / 1081.0) * (end_index - start_index)
         r1 = ranges[start_index] # looking forward-left
@@ -70,16 +69,13 @@ class wall_follow:
             pid_kp = PID_KP_RIGHT
         steer_output = (sign * pid_kp * error) + (sign * PID_KD * deriv)
 
-        if steer_output > 0.4:
-            steer_output = 0.4
-        elif steer_output < -0.4:
-            steer_output = -0.4
+	print(steer_output)
 
         # rospy.loginfo("steering is %f", steer_output)
-        if self.followState != 0:
+        if not self.followState ==  0:
             drive_msg = AckermannDriveStamped()
             # I think you also need to define the "header"
-            drive_msg.drive.speed = 2 # max speed
+            drive_msg.drive.speed = 1.0 # max speed
             drive_msg.drive.steering_angle = steer_output
 	    self.drive_pub.publish(drive_msg)
         else:

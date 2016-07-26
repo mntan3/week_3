@@ -12,10 +12,11 @@ class EqualDistanceWallFollower:
         self.sub_scan = rospy.Subscriber("/scan", LaserScan, self.drive_cb)
         self.pub_drive = rospy.Publisher("/vesc/ackermann_cmd_mux/input/navigation", AckermannDriveStamped, queue_size = 1)
 
-        self.loginfo("initialized")
+        rospy.loginfo("initialized")
 
     def drive_cb(self, msg):
-	drivemsg = AckermannDriveStamped()
+	drivemsg = AckermannDriveStamped(self.header, AckermannDrive(speed=0.0, steering_angle=0.0))
+        drivemsg.header = self.header
         drivemsg.drive.speed = 1.0
 
         left_wall_distance = msg.ranges[720] # average probably
@@ -29,7 +30,7 @@ class EqualDistanceWallFollower:
 
         drivemsg.drive.steering_angle = K_prop * error
 
-        self.pub_drive(drivemsg)
+        self.pub_drive.publish(drivemsg)
 
 if __name__ == "__main__":
     rospy.init_node("equal_distance_wall_follower")
