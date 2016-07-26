@@ -13,19 +13,25 @@ PID_KD = 0
 class wall_follow:
     def __init__(self):
         # don't forget to define the node name ya goose
-        rospy.Subscriber('/scan', LaserScan, self.laser_callback, queue_size=10)
-        self.pub_left = rospy.Publisher('/wallfollower_left', AckermannDriveStamped, queue_size=10)
-        self.pub_right = rospy.Publisher('/wallfollower_right', AckermannDriveStamped, queue_size=10)
+        rospy.Subscriber('/scan', LaserScan, self.simulate_callback, queue_size=10)
+        rospy.Subscriber('/wallfollow'¸ String, self.enable)
 	self.drive_pub = rospy.Publisher("/vesc/ackermann_cmd_mux/input/navigation", AckermannDriveStamped, queue_size = 1)
 
         self.last_error = None
+        self.STOP = AckermannDriveStamped(self.header, AckermannDrive(steering_angle=0.0, speed    =0.0))
 
-        self.follow_left = True
-
+        self.followState = 0    #0 is stop, 1 is follow left, 2 is follow right
+        
         self.desired = 0.45
-    
+    def enable(self.msg):
+        if msg.data == "follow left":
+            self.followState = 1
+        elif msg.data == "follow right":
+            self.followState = 2
+        else msg.data == "stop"
+            self.followState = 0
     def calc_actual_dist(self, ranges):
-        if self.follow_left:
+        if self.followState == 1:
             end_index = 900
             start_index = 850
         else: # follow right
@@ -40,15 +46,8 @@ class wall_follow:
         dist /= math.sqrt(r1**2 + r2**2 - 2*r1*r2*math.cos(math.radians(angle_degrees)))
         return dist
         
-        
-    def laser_callback(self, msg):
-        self.follow_left = True
-        self.simulate_callback(msg, self.pub_right)
-
-        self.follow_left = False
-        self.simulate_callback(msg, self.pub_left)
-        
-    def simulate_callback(self, msg, publisher): # what is the point of the "publisher" argument? # Jk I figured it out, pretty sneaky
+               
+    def simulate_callback(self, msg): # what is the point of the "publisher" argument? # Jk I figured it out, pretty sneaky
         actual_dist = self.calc_actual_dist(msg.ranges)
         # rospy.loginfo("The actual distance: %f", actual_dist)
         # rospy.loginfo("Direction: %d", self.follow_left)
@@ -62,10 +61,10 @@ class wall_follow:
             deriv = 0
 
         sign = 1
-        if self.follow_left:
+        if self.followState == 1:
             sign = -1
 
-        if self.follow_left:
+        if self.followState == 1:
             pid_kp = PID_KP_LEFT
         else:
             pid_kp = PID_KP_RIGHT
@@ -77,17 +76,18 @@ class wall_follow:
             steer_output = -0.4
 
         # rospy.loginfo("steering is %f", steer_output)
-    
-        drive_msg = AckermannDriveStamped()
-        # I think you also need to define the "header"
-        drive_msg.drive.speed = 2 # max speed
-        drive_msg.drive.steering_angle = steer_output
-	self.drive_pub.publish(drive_msg)
-        #publisher.publish(drive_msg)
+        if self.followState != 0:
+            drive_msg = AckermannDriveStamped()
+            # I think you also need to define the "header"
+            drive_msg.drive.speed = 2 # max speed
+            drive_msg.drive.steering_angle = steer_output
+	    self.drive_pub.publish(drive_msg)
+        else:
+            self.drive_pub.publish(self.STOP)
 
         self.last_error = error
 
 if __name__ == '__main__':
     rospy.init_node('wall_follower')
     node = wall_follow()
-    rospy.spin()            
+    rospy.spin()
