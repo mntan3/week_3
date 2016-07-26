@@ -28,7 +28,7 @@ class wall_follow:
             self.followState = 1
         elif msg.data == "follow right":
             self.followState = 2
-        else msg.data == "stop"
+        else msg.data == "stop follow"
             self.followState = 0
     def calc_actual_dist(self, ranges):
         if self.followState == 1:
