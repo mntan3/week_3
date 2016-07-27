@@ -1,0 +1,9 @@
+<launch>
+
+  <include file="$(find racecar)/launch/teleop.launch"/>
+
+  <node pkg="week_3" type="winter.py" name="object_avoidance_node" />
+
+  <node pkg="week_3" type="safetyControl.py" name= "safety_controller_node" />
+
+</launch> 
