@@ -5,6 +5,10 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import *
 import math
 
+#Implements PID(only P for now) to follow a wall
+#In order to run, make sure laser is collecting and then publish "follow left" or "follow right" onto /wallfollow topic
+#Need to add function that publishes to follow right wall when it detects a large shift in laser data on the left side, indicating the gap
+
 PID_KP_LEFT = 2.0
 PID_KP_RIGHT =  200
 
@@ -22,17 +26,21 @@ class wall_follow:
         self.followState = 0    #0 is stop, 1 is follow left, 2 is follow right
         
         self.desired = 0.55
+
+    #Sets which wall to follow based on msg from /wallfollow topic
     def enable(self,msg):
         if msg.data == "follow left":
             self.followState = 1
         elif msg.data == "follow right":
             self.followState = 2
-        else:
+        elif msg.data == "stop follow":
             self.followState = 0
+
+    #Given all laser scan data, compute perpendicular distance
     def calc_actual_dist(self, ranges):
         if self.followState == 1:
             end_index = 900
-            start_index = 660
+            start_index = 660                   #Laser ranges go from 0-1080, while angle go from 0-270
         else: # follow right
             end_index = 420
             start_index = 180
@@ -45,13 +53,10 @@ class wall_follow:
         dist /= math.sqrt(r1**2 + r2**2 - 2*r1*r2*math.cos(math.radians(angle_degrees)))
         return dist
         
-               
-    def simulate_callback(self, msg): # what is the point of the "publisher" argument? # Jk I figured it out, pretty sneaky
+    def simulate_callback(self, msg):
         actual_dist = self.calc_actual_dist(msg.ranges)
-        # rospy.loginfo("The actual distance: %f", actual_dist)
-        # rospy.loginfo("Direction: %d", self.follow_left)
 
-
+        #Compute steering angle using PID(Only P for now)
         error = self.desired - actual_dist
         
         if self.last_error != None:
@@ -70,11 +75,10 @@ class wall_follow:
         steer_output = (sign * pid_kp * error) + (sign * PID_KD * deriv)
 
 	print(steer_output)
-
-        # rospy.loginfo("steering is %f", steer_output)
+        
+        #Send drive commands if the state allows
         if not self.followState ==  0:
             drive_msg = AckermannDriveStamped()
-            # I think you also need to define the "header"
             drive_msg.drive.speed = 1.0 # max speed
             drive_msg.drive.steering_angle = steer_output
 	    self.drive_pub.publish(drive_msg)
