@@ -4,7 +4,7 @@
 
   <include file="$(find zed_wrapper)/launch/zed.launch"/>
 
-  <node pkg="week_3" type="echo.py" name="blob_detection_node" />
+  <node pkg="week_3" type="echoOld.py" name="blob_detection_node" />
 
   <node pkg="week_3" type="winter.py" name="object_avoidance_node" />
 

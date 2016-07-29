@@ -1,28 +1,32 @@
-#!/usr/bin/env python
+#! /usr/bin/env python
+
 import rospy
-from std_msgs.msg import *
+from ackermann_msgs.msg import AckermannDriveStamped
 from sensor_msgs.msg import LaserScan
-from ackermann_msgs.msg import *
 
-class Safety:
+class SafetyControllerNode:
     def __init__(self):
-        rospy.Subscriber('/scan', LaserScan, self.laser_callback, queue_size=10)
+        rospy.Subscriber("/scan", LaserScan, self.laser_callback, queue_size=10)
 
-	self.drive_pub = rospy.Publisher("/vesc/ackermann_cmd_mux/input/safety", AckermannDriveStamped, queue_size = 1)
-        
-        self.header = std_msgs.msg.Header()
+        self.pub = rospy.Publisher("/vesc/ackermann_cmd_mux/input/safety", AckermannDriveStamped, queue_size=10)
+
     def laser_callback(self, msg):
-        fwd_scan = msg.ranges[509:570] 
-	dist = min(fwd_scan)
-        if dist < 0.5:
-            drive_msg = AckermannDriveStamped(self.header, AckermannDrive(speed=0.0, steering_angle=0.0))
-            self.drive_pub.publish(drive_msg)
-	elif dist < 0.2:
-	    drive_msg2 = AckermannDriveStamped(self.header, AckermannDrive(speed=1.0, steering_angle=0.0))
-	    self.drive_pub.publish(drive_msg2)
+        center = len(msg.ranges) / 2
+        avg = 0
+        for i in range(0, 10):
+            avg += msg.ranges[center - 5 + i]
+        avg /= 10
+
+        drivemsg = AckermannDriveStamped()
+        #drivemsg.drive.steering_angle = 0
+        if avg < 0.5:
+            drivemsg.drive.speed = -0.5
+            self.pub.publish(drivemsg)
+	    rospy.loginfo("center range(s): %f", avg)
 
 if __name__ == "__main__":
-    rospy.init_node("safety")
-    node = Safety()
+    rospy.init_node("safety_controller_py")
+    node = SafetyControllerNode()
     rospy.spin()
+
 

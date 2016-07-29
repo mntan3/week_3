@@ -19,6 +19,8 @@ class ObstacleDetectionNode:
 
     def laser_cb(self, msg):
 
+        rospy.loginfo("Called back")
+
         # not_object_position is where the car can move to 
         not_object_position = "center"
 
