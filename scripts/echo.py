@@ -172,7 +172,7 @@ class Echo:
     def ChallengePublisher(self, blob_message, image):
         current_time = rospy.get_time()
         if current_time - self.last_time_saved > 1.5:
-            os.chdir("/home/racecar/challenge_photos")
+            os.chdir("/home/racecar/challenge_photos/test")
             cv2.imwrite(blob_message + str(current_time) + ".jpg", image)
             self.last_time_saved = current_time
         self.pub_exploratory_matches.publish(blob_message)
